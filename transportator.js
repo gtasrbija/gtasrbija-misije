@@ -1,6 +1,40 @@
 /// <reference path=".config/sa.d.ts" />
 
 let policeIDs = [427, 490, 528, 523, 596, 597, 598, 599, 432, 601];
+let carIDs = [
+  602, 496, 401, 518, 527, 589, 419, 587, 533, 526, 474, 545, 517, 410, 600,
+  436, 439, 549, 491, 602, 496, 401, 518, 527, 589, 419, 587, 533, 526, 474,
+  545, 517, 410, 600, 436, 439, 549, 491, 536, 575, 534, 567, 535, 576, 412,
+  402, 542, 603, 475, 429, 541, 415, 480, 562, 565, 434, 494, 502, 503, 411,
+  559, 561, 560, 506, 451, 558, 555, 477,
+];
+
+let checkpoints = [
+  [2351.4167, -652.9949, 127.6202, 359],
+  [249.9106, -1387.6295, 53.1093, 90],
+  [2802.9223, -2377.5175, 13.6299, 188],
+  [-541.12, -74.1752, 62.8593, 92],
+  [-91.957, -38.45, 3.1171, 161],
+  [886.3692, -25.6296, 62.9788, 157],
+  [1019.9101, -302.5046, 73.993, 0],
+  [2149.1872, -97.7282, 2.7176, 346],
+  [2348.1723, -1245.2332, 22.5, 95],
+  [290.699, -1517.6916, 24.3588, 50],
+  [2791.6044, -1431.4107, 23.9477, 90],
+  [1645.7396, -1699.6694, 20.2427, 271],
+  [1246.8513, -2009.8676, 59.559, 0],
+  [833.3419, -1166.2478, 16.7368, 91],
+  [2138.1577, -1284.8424, 24.3358, 0],
+];
+
+let stuff = ["prljav novac", "trava", "belo", "zlato", "heroin"];
+
+let newMissionMSGs = [
+  "Yo, treba da mi se preveze neka roba! Jel bi ti to mogao da uradis?",
+  "Imam posao za tebe!",
+  "Hej, treba mi neko da mi preveze auto! Da li si slobodan?",
+  "Znas li da vozis? Imam dobru ponudu za tebe!",
+];
 
 let missionActive = false;
 
@@ -62,55 +96,44 @@ function areCopsNearby() {
   );
 }
 
-let startCheckpoints = [[2351.4167, -652.9949, 127.6202, 359]];
-
-let endCheckpoints = [[-934.9498, -529.3381, 25.9536]];
-
-async function main() {
+async function mission() {
   var player = new Player(0);
   var char = player.getChar();
 
-  let start = startCheckpoints[getRandomIndex(startCheckpoints.length)];
-
-  let currentCP = Sphere.Create(start[0], start[1], start[2], 1.2);
+  let start = checkpoints[getRandomIndex(checkpoints.length)];
   let currentBlip = Blip.AddSpriteForCoord(start[0], start[1], start[2], 55);
+  let veh;
 
-  let shownMSG = false;
-  let sleep = 100;
-
-  while (!missionActive) {
+  while (!veh) {
     if (
       char.locateStoppedOnFoot3D(
         start[0],
         start[1],
         start[2],
-        1.2,
-        1.2,
-        1.2,
+        150,
+        150,
+        150,
         false
-      ) &&
-      !ONMISSION
+      )
     ) {
-      if (ONMISSION) {
-        if (!shownMSG) {
-          showTextBox("Prvo zavrsi sto radis pa se vrati!");
-          shownMSG = true;
-        }
-      } else {
-        sleep = 5;
-        if (!shownMSG) {
-          showTextBox("Pritisni E da zapocnes misiju!!");
-          shownMSG = true;
-        }
-        if (Pad.IsKeyPressed(69)) {
-          missionActive = true;
-        }
-      }
-    } else {
-      shownMSG = false;
-      sleep = 100;
+      veh = await spawnCar(
+        carIDs[getRandomIndex(carIDs.length)],
+        start[0],
+        start[1],
+        start[2],
+        0,
+        0,
+        start[3]
+      );
+      break;
     }
-    await asyncWait(sleep);
+
+    await asyncWait(1000);
+  }
+
+  while (!missionActive) {
+    if (char.isInCar(veh) && !ONMISSION) missionActive = true;
+    await asyncWait(1000);
   }
 
   Text.PrintBigString("transportator", 2500, 2);
@@ -118,21 +141,27 @@ async function main() {
 
   ONMISSION = true;
   Stat.RegisterMissionGiven();
-  currentCP.remove();
   currentBlip.remove();
 
-  let end = endCheckpoints[getRandomIndex(endCheckpoints.length)];
-  let zarada = getCharDistanceTo3DCoords(char, end[0], end[1], end[2]) * 5;
+  let end;
+  while (!end || end == start)
+    end = checkpoints[getRandomIndex(checkpoints.length)];
 
-  let veh = await spawnCar(411, start[0], start[1], start[2], 0, 0, start[3]);
-  char.warpIntoCar(veh);
+  let carrying = getRandomIndex(stuff.length);
+  let zarada =
+    getCharDistanceTo3DCoords(char, end[0], end[1], end[2]) *
+    (5 + carrying * 1.5);
+
   await fade(1000, 1);
-  Text.PrintStringNow("Prevezi vozilo i pazi na kerove!", 5000);
 
-  currentCP = Sphere.Create(end[0], end[1], end[2], 3);
+  Text.PrintStringNow(
+    `U autu se nalazi ~g~${stuff[carrying]}~w~! Prevezi ~b~auto~w~ do ~y~lokacije~w~ i izbegavaj ~r~muriju~w~!`,
+    5000
+  );
+
+  let currentCP = Sphere.Create(end[0], end[1], end[2], 3);
   currentBlip = Blip.AddSpriteForCoord(end[0], end[1], end[2], 0);
-  currentBlip.changeColor(4);
-  currentBlip.changeScale(3);
+  currentBlip.changeColor(4).changeScale(3);
 
   let inCP = false;
   while (ONMISSION) {
@@ -144,7 +173,10 @@ async function main() {
       inCP = true;
 
       if (player.isWantedLevelGreater(0)) {
-        Text.PrintStringNow("Panduri te jure, otarasi ih se prvo!", 5000);
+        Text.PrintStringNow(
+          "~r~Panduri~w~ te jure, ~y~otarasi~w~ ih se prvo!",
+          5000
+        );
       } else {
         await fade(1000, 0);
         currentCP.remove();
@@ -161,6 +193,7 @@ async function main() {
         Audio.PlayMissionPassedTune(2);
         ONMISSION = false;
         missionActive = false;
+        break;
       }
     } else inCP = false;
 
@@ -171,9 +204,21 @@ async function main() {
     ) {
       player.alterWantedLevel(3);
       Text.PrintStringNow(
-        "Policija je prepoznala vozilo! Otarasi ih se pre nego sto ga dostavis!",
+        "~r~Policija~w~ je prepoznala ~b~vozilo~w~! ~y~Otarasi~w~ ih se pre nego sto ga dostavis!",
         5000
       );
+    }
+    if (Car.IsDead(veh)) {
+      await fade(1000, 0);
+      char.removeFromCarMaintainPosition(veh);
+      veh.delete();
+      currentCP.remove();
+      currentBlip.remove();
+      await fade(1000, 1);
+      ONMISSION = false;
+      missionActive = false;
+      Text.PrintBig("M_FAIL", 2500, 1);
+      break;
     }
 
     await asyncWait(1000);
@@ -181,5 +226,11 @@ async function main() {
 }
 
 (async () => {
-  await main();
+  while (1 < 2) {
+    await asyncWait((getRandomIndex(0) + 0) * 60000);
+    await asyncWait(15000);
+    let msg = newMissionMSGs[getRandomIndex(newMissionMSGs.length)];
+    showTextBox(`PEDZER: ${msg}`);
+    await mission();
+  }
 })();
