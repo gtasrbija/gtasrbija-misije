@@ -82,17 +82,17 @@ function getRandomBool(bias) {
   return Math.random() > bias;
 }
 
-function areCopsNearby() {
+function areCopsNearby(range = 75) {
   var player = new Player(0);
   var char = player.getChar();
   const { x, y, z } = char.getCoordinates();
   return World.IsCopVehicleInArea3DNoSave(
-    x - 75,
-    y - 75,
-    z - 75,
-    x + 75,
-    y + 75,
-    z + 75
+    x - range,
+    y - range,
+    z - range,
+    x + range,
+    y + range,
+    z + range
   );
 }
 
@@ -105,30 +105,19 @@ async function mission() {
   let veh;
 
   while (!veh) {
-    if (
-      char.locateStoppedOnFoot3D(
-        start[0],
-        start[1],
-        start[2],
-        150,
-        150,
-        150,
-        false
-      )
-    ) {
-      veh = await spawnCar(
-        carIDs[getRandomIndex(carIDs.length)],
-        start[0],
-        start[1],
-        start[2],
-        0,
-        0,
-        start[3]
-      );
-      break;
+    if (getCharDistanceTo3DCoords(char, start[0], start[1], start[2]) > 50) {
+      await asyncWait(1000);
+      continue;
     }
-
-    await asyncWait(1000);
+    veh = await spawnCar(
+      carIDs[getRandomIndex(carIDs.length)],
+      start[0],
+      start[1],
+      start[2],
+      0,
+      0,
+      start[3]
+    );
   }
 
   while (!missionActive) {
@@ -230,7 +219,7 @@ async function mission() {
     await asyncWait((getRandomIndex(0) + 0) * 60000);
     await asyncWait(15000);
     let msg = newMissionMSGs[getRandomIndex(newMissionMSGs.length)];
-    showTextBox(`PEDZER: ${msg}`);
+    showTextBox(`SMS: ${msg}`);
     await mission();
   }
 })();
